@@ -1,13 +1,17 @@
 #1 install and import baseline deopendecies
-from transformers import PegasusTokenizer, PegasusForConditionalGeneration
+from transformers import PegasusTokenizer, PegasusForConditionalGeneration, pipeline
 from bs4 import BeautifulSoup
 import requests
 import re
+import torch
+import csv 
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 #2 setup the summarization model
 model_name = "human-centered-summarization/financial-summarization-pegasus" #the model we use for the project
 tokenizer = PegasusTokenizer.from_pretrained(model_name) #encode and decode the downloaded texts like a translator
-model = PegasusForConditionalGeneration.from_pretrained(model_name) #loading the model
+model = PegasusForConditionalGeneration.from_pretrained(model_name).to(device) #loading the model
 
 """"
 #3 summarize a single article
@@ -63,7 +67,7 @@ def scrape_and_process(URLs):
         soup = BeautifulSoup(r.text, 'html.parser')
         paragraphs = soup.find_all('p')
         text = [paragraph.text for paragraph in paragraphs]
-        words = ' '.join(text).split(' ')[:350]
+        words = ' '.join(text).split(' ')[:200]
         ARTICLE = ' '.join(words)
         ARTICLES.append(ARTICLE)
     return ARTICLES
@@ -74,12 +78,45 @@ articles = {ticker:scrape_and_process(cleaned_urls[ticker]) for ticker in monito
 
 #4.4 summarize articles 
 
+def summarize(articles):
+    summaries = []
+    for article in articles:
+        input_ids = tokenizer.encode(article, return_tensors = 'pt').to(device)
+        output = model.generate(input_ids, max_length = 50, num_beams = 5, early_stopping = True)
+        summary = tokenizer.decode(output[0], skip_special_tokens = True)
+        summaries.append(summary)
+    return summaries
 
+summaries = {ticker:summarize(articles[ticker]) for ticker in monitored_tickers}
+#print(summaries)
 
 #5 adding sentiment analysis
 
+sentiment = pipeline('sentiment-analysis')
 
+scores = {ticker:sentiment(summaries[ticker]) for ticker in monitored_tickers}
+
+#print(summaries['TSLA'][0], scores['TSLA'][0]['label'], scores['TSLA'][0]['score'])
 
 #6 exporting results to csv
 
+def create_output_array(summaries, scores, urls):
+    output = []
+    for ticker in monitored_tickers:
+        for counter in range(len(summaries[ticker])): 
+            output_this = [
+                ticker,
+                summaries[ticker][counter],
+                scores[ticker][counter]['label'],
+                scores[ticker][counter]['score'],
+                urls[ticker][counter]
+            ]    
+            output.append(output_this)
+    return output 
 
+final_output = create_output_array(summaries, scores, cleaned_urls)
+final_output.insert(0, ['Ticker', 'Summary', 'Label', 'Confidence', 'URL'])
+
+with open('asset_summaries.csv', mode= 'w', newline= ' ') as f:
+    csv_writer = csv.writer(f, delimiter= ',', quotechar='"', quoting= csv.QUOTE_MINIMAL)
+    csv_writer.writerow(final_output)
