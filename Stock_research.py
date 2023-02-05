@@ -1,6 +1,16 @@
 #1 install and import baseline deopendecies
 
+from transformers import PegasusTokenizer, PegasusForConditionalGeneration
+from bs4 import BeautifulSoup
+import requests
+
 #2 setup summarization model
+
+model_name = "human-centered_summarization/financial-summarization-pegasus" #the model we use for the project
+tokenizer = PegasusTokenizer.from_pretrained(model_name) #encode and decode the downloaded texts
+model = PegasusForConditionalGeneration.from_pretrained(model_name)
+
+
 
 #3 summarize a single article
 
