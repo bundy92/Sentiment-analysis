@@ -12,7 +12,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 model_name = "human-centered-summarization/financial-summarization-pegasus" #the model we use for the project
 tokenizer = PegasusTokenizer.from_pretrained(model_name) #encode and decode the downloaded texts like a translator
 model = PegasusForConditionalGeneration.from_pretrained(model_name).to(device) #loading the model
-
+print("Setting up the model.")
 """"
 #3 summarize a single article
 url = "https://finance.yahoo.com/news/tesla-reverses-model-y-price-204727601.html" #will be automated
@@ -47,7 +47,7 @@ def search_for_stock_news_urls(ticker):
 raw_urls = {ticker:search_for_stock_news_urls(ticker) for ticker in monitored_tickers}
 
 exclude_list = ['maps', 'policies', 'preferences', 'accounts', 'support']
-
+print("Cleaning up URLs.")
 #4.2 strip out unwanted URLs
 def strip_unwanted_urls(urls, exclude_list):
     val = []
@@ -59,6 +59,7 @@ def strip_unwanted_urls(urls, exclude_list):
 
 cleaned_urls = {ticker:strip_unwanted_urls(raw_urls[ticker], exclude_list) for ticker in monitored_tickers}
 
+print("Removing unwanted URLs.")
 #4.3 search and scrape unwanted  URLs
 def scrape_and_process(URLs):
     ARTICLES = []
@@ -75,9 +76,8 @@ def scrape_and_process(URLs):
 articles = {ticker:scrape_and_process(cleaned_urls[ticker]) for ticker in monitored_tickers}
 #print(len(articles['BTC'][0]))
 #print(articles['BTC'][0])
-
 #4.4 summarize articles 
-
+print("Summarizing articles.")
 def summarize(articles):
     summaries = []
     for article in articles:
@@ -91,7 +91,7 @@ summaries = {ticker:summarize(articles[ticker]) for ticker in monitored_tickers}
 #print(summaries)
 
 #5 adding sentiment analysis
-
+print("Commencing sentiment analysis.")
 sentiment = pipeline('sentiment-analysis')
 
 scores = {ticker:sentiment(summaries[ticker]) for ticker in monitored_tickers}
@@ -116,7 +116,8 @@ def create_output_array(summaries, scores, urls):
 
 final_output = create_output_array(summaries, scores, cleaned_urls)
 final_output.insert(0, ['Ticker', 'Summary', 'Label', 'Confidence', 'URL'])
+print("Creating final output.")
 
-with open('asset_summaries.csv', mode= 'w', newline= ' ') as f:
-    csv_writer = csv.writer(f, delimiter= ',', quotechar='"', quoting= csv.QUOTE_MINIMAL)
-    csv_writer.writerow(final_output)
+with open('assetsummaries.csv', mode='w', newline='') as f:
+    csv_writer = csv.writer(f, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+    csv_writer.writerows(final_output)
