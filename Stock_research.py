@@ -5,6 +5,8 @@ import requests
 import re
 import torch
 #import csv 
+from tensorflow.python.compiler.mlcompute import mlcompute
+mlcompute.set_mlc_device(device_name="gpu")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
